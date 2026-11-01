@@ -28,7 +28,7 @@ test("migration, catégories partagées, renommage atomique, ordre, suppression 
       if (options.onlyIfMatch !== String(version)) return { modified: false };
       state = structuredClone(next);
       version++;
-      return { modified: true };
+      return { modified: true, etag: String(version) };
     },
   });
   const expiry = String(Date.now() + 3600000);
@@ -62,6 +62,9 @@ test("migration, catégories partagées, renommage atomique, ordre, suppression 
   );
   let created = await call("categories", "POST", { name: "Nouveau" });
   assert.equal(created.status, 201);
+  assert.equal(created.data.revision, String(version));
+  assert.deepEqual(created.data.products, [original]);
+  assert.equal(created.data.categories.at(-1).id, created.data.id);
   assert.deepEqual(state.products, [original]);
   assert.equal(
     (await call("categories", "POST", { name: " nouveau " })).status,

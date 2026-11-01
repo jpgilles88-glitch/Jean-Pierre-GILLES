@@ -86,3 +86,9 @@ Playwright utilise Chromium installé dans `/usr/bin/chromium`, ou le chemin dé
 - Le stock est réservé lors de la commande ; les statuts ne libèrent pas de stock automatiquement. Corriger le stock dans la gestion si une commande doit être annulée. Les commandes restent consultables dans la gestion ; définir une politique d’archivage et d’effacement des données personnelles avant une exploitation prolongée.
 - Les photos retirées du catalogue restent dans Blobs pour ne pas supprimer une image encore utilisée par un autre produit. Les sauvegardes et l’entretien du magasin relèvent de l’exploitation Netlify.
 - La validation locale utilise un stockage de test. L’accès Blobs réel, les Functions publiées et Safari sur iPhone physique devront être confirmés après déploiement. Aucun accès au compte Netlify n’est nécessaire pour tester localement.
+
+### Révisions des catégories
+
+Chaque écriture renvoie la révision issue de l’écriture conditionnelle Blobs. Une modification de catégorie renvoie aussi le catalogue résultant : l’interface applique immédiatement produits, catégories et révision sans attendre une seconde lecture. Les lectures démarrées avant une écriture sont ignorées et les actions sur les catégories sont bloquées pendant leur enregistrement. « Actualiser » effectue une lecture sans cache, même si une lecture précédente était en cours. Les révisions d’un formulaire produit déjà ouvert restent conservées pour détecter une modification concurrente.
+
+Le test navigateur `category-revisions.spec.js` enchaîne deux renommages, un ajout, une montée, une descente et une suppression sans rechargement ; il retarde une lecture ancienne, contrôle les révisions échangées, provoque un conflit depuis une seconde session et vérifie la reprise après « Actualiser ». Les tests utilisent exclusivement un magasin local isolé.

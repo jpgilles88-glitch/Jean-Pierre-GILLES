@@ -34,7 +34,9 @@ let categories = [],
   photoBusy = false,
   photoVersion = 0,
   savingProduct = false,
-  refreshing = false,
+  refreshing = null,
+  catalogGeneration = 0,
+  changingCategory = false,
   noticeTimer;
 let cart = {};
 try {
@@ -56,6 +58,7 @@ function notice(message, error = false) {
 async function api(path, options = {}) {
   const response = await fetch("/api/" + path, {
     ...options,
+    cache: "no-store",
     headers: {
       ...(options.body && !(options.body instanceof Blob)
         ? { "Content-Type": "application/json" }
@@ -78,7 +81,22 @@ async function api(path, options = {}) {
     }
     throw Error(data.error || "Service indisponible");
   }
+  if (
+    options.method &&
+    ["products", "categories", "orders"].includes(path.split("/")[0])
+  ) {
+    // Invalidate reads started before this write, including background polling.
+    catalogGeneration++;
+    revision = data.revision;
+  }
   return data;
+}
+function applyCatalog(data) {
+  products = data.products;
+  revision = data.revision;
+  categories = data.categories;
+  renderCategories();
+  renderProducts();
 }
 function saveCart() {
   try {
@@ -121,29 +139,35 @@ function renderProducts() {
       '<p class="empty">Ajoutez votre premier produit pour ouvrir les rayons.</p>';
 }
 async function refresh(quiet = false) {
-  if (refreshing) return;
-  refreshing = true;
+  if (refreshing) {
+    await refreshing;
+    if (quiet) return;
+  }
+  if (changingCategory) return;
+  const generation = catalogGeneration;
+  refreshing = (async () => {
+    try {
+      const data = await api("products");
+      if (generation !== catalogGeneration) return;
+      applyCatalog(data);
+      const time = new Intl.DateTimeFormat("fr-FR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }).format(new Date());
+      $("#sync-state").textContent = "Synchronisé à " + time;
+      $("#admin-sync").textContent = "Synchronisé à " + time;
+      if (authenticated) await loadOrders();
+    } catch (e) {
+      $("#sync-state").textContent = "Hors connexion · données non actualisées";
+      $("#admin-sync").textContent = "Échec de synchronisation";
+      if (!quiet) notice(e.message, true);
+    }
+  })();
   try {
-    const data = await api("products");
-    products = data.products;
-    revision = data.revision;
-    categories = data.categories;
-    renderCategories();
-    renderProducts();
-    const time = new Intl.DateTimeFormat("fr-FR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }).format(new Date());
-    $("#sync-state").textContent = "Synchronisé à " + time;
-    $("#admin-sync").textContent = "Synchronisé à " + time;
-    if (authenticated) await loadOrders();
-  } catch (e) {
-    $("#sync-state").textContent = "Hors connexion · données non actualisées";
-    $("#admin-sync").textContent = "Échec de synchronisation";
-    if (!quiet) notice(e.message, true);
+    await refreshing;
   } finally {
-    refreshing = false;
+    refreshing = null;
   }
 }
 function renderAuth() {
@@ -200,18 +224,31 @@ function renderCategories() {
       .join("");
 }
 async function changeCategory(path, method, body, expectedRevision = revision) {
+  if (changingCategory) return;
   try {
-    await api("categories" + path, {
+    changingCategory = true;
+    catalogGeneration++;
+    setCategoryBusy(true);
+    const data = await api("categories" + path, {
       method,
       headers: { "If-Match": expectedRevision || "" },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
-    await refresh();
+    applyCatalog(data);
     notice("Catégories enregistrées et synchronisées");
   } catch (e) {
     notice(e.message, true);
-    await refresh(true);
+  } finally {
+    changingCategory = false;
+    setCategoryBusy(false);
   }
+}
+function setCategoryBusy(busy) {
+  for (const button of document.querySelectorAll(
+    "#category-list button, #category-form button, #refresh",
+  ))
+    button.disabled = busy;
+  if (!busy) renderCategories();
 }
 $("#category-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -221,7 +258,7 @@ $("#category-form").addEventListener("submit", async (e) => {
 });
 $("#category-list").addEventListener("click", async (e) => {
   const b = e.target.closest("button");
-  if (!b) return;
+  if (!b || changingCategory) return;
   const id =
     b.dataset.categoryRename ||
     b.dataset.categoryDelete ||

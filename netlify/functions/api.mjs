@@ -142,7 +142,7 @@ export function createHandler(storeFactory = getStore, env = process.env) {
       const state = old?.data || { products: [], orders: [] };
       const categories = catalogCategories(state);
       const categoryList = () =>
-        categories.map((c) => ({
+        state.categories.map((c) => ({
           ...c,
           count: state.products.filter((p) => p.family === c.name).length,
         }));
@@ -275,7 +275,16 @@ export function createHandler(storeFactory = getStore, env = process.env) {
           },
           409,
         );
-      return json(result, method === "POST" ? 201 : 200);
+      return json(
+        {
+          ...result,
+          revision: saved.etag,
+          ...(path[0] === "categories"
+            ? { categories: categoryList(), products: state.products }
+            : {}),
+        },
+        method === "POST" ? 201 : 200,
+      );
     } catch (e) {
       if (e instanceof SyntaxError)
         return json({ error: "JSON invalide" }, 400);
