@@ -942,3 +942,17 @@ input[type="file"] {
     scroll-behavior: auto;
   }
 }
+
+.category-row {
+  padding: 1rem 0;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: center;
+}
+.category-row > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

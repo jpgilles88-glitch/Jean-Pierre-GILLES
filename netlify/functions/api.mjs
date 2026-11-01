@@ -5,7 +5,13 @@ import {
   randomUUID,
   createHash,
 } from "node:crypto";
-import { product, publicProduct, makeOrder } from "../../lib/domain.js";
+import {
+  product,
+  publicProduct,
+  makeOrder,
+  catalogCategories,
+  categoryName,
+} from "../../lib/domain.js";
 const json = (body, status = 200, headers = {}) =>
   new Response(JSON.stringify(body), {
     status,
@@ -134,8 +140,20 @@ export function createHandler(storeFactory = getStore, env = process.env) {
       const old = await store.getWithMetadata("state", { type: "json" });
       if (old && !old.etag) throw Error("Métadonnées Blobs indisponibles");
       const state = old?.data || { products: [], orders: [] };
+      const categories = catalogCategories(state);
+      const categoryList = () =>
+        categories.map((c) => ({
+          ...c,
+          count: state.products.filter((p) => p.family === c.name).length,
+        }));
+      if (path[0] === "categories" && method === "GET")
+        return json({
+          categories: categoryList(),
+          revision: old?.etag || null,
+        });
       if (path[0] === "products" && method === "GET")
         return json({
+          categories: categoryList(),
           products: admin ? state.products : state.products.map(publicProduct),
           revision: old?.etag || null,
         });
@@ -143,7 +161,7 @@ export function createHandler(storeFactory = getStore, env = process.env) {
         if (!admin) return json({ error: "Connexion requise" }, 401);
         return json({ orders: state.orders, revision: old?.etag || null });
       }
-      if (!["products", "orders"].includes(path[0]))
+      if (!["products", "orders", "categories"].includes(path[0]))
         return json({ error: "Introuvable" }, 404);
       if (!admin && !(path[0] === "orders" && method === "POST"))
         return json({ error: "Connexion requise" }, 401);
@@ -151,7 +169,58 @@ export function createHandler(storeFactory = getStore, env = process.env) {
         return json({ error: "Requête trop volumineuse" }, 413);
       const body = method === "DELETE" ? {} : await req.json();
       let result;
-      if (path[0] === "products") {
+      if (path[0] === "categories") {
+        if (!["POST", "PUT", "DELETE"].includes(method))
+          return json({ error: "Méthode refusée" }, 405);
+        if (req.headers.get("if-match") !== (old?.etag || ""))
+          return json(
+            { error: "Le catalogue a changé. Actualisez puis recommencez." },
+            409,
+          );
+        if (method === "POST") {
+          result = {
+            id: randomUUID(),
+            name: categoryName(body.name, categories),
+          };
+          categories.push(result);
+        } else if (method === "PUT" && path[1] === "order") {
+          if (
+            !Array.isArray(body.ids) ||
+            body.ids.length !== categories.length ||
+            new Set(body.ids).size !== categories.length ||
+            body.ids.some((id) => !categories.some((c) => c.id === id))
+          )
+            throw Error("Ordre invalide");
+          state.categories = body.ids.map((id) =>
+            categories.find((c) => c.id === id),
+          );
+          result = { ok: true };
+        } else {
+          const c = categories.find((c) => c.id === path[1]);
+          if (!c) return json({ error: "Catégorie introuvable" }, 404);
+          if (method === "DELETE") {
+            const count = state.products.filter(
+              (p) => p.family === c.name,
+            ).length;
+            if (count)
+              return json(
+                {
+                  error: `${count} produit(s) associé(s). Déplacez d’abord les produits vers une autre catégorie.`,
+                  count,
+                },
+                409,
+              );
+            state.categories = categories.filter((item) => item.id !== c.id);
+            result = { ok: true };
+          } else {
+            const name = categoryName(body.name, categories, c.id);
+            for (const p of state.products)
+              if (p.family === c.name) p.family = name;
+            c.name = name;
+            result = c;
+          }
+        }
+      } else if (path[0] === "products") {
         if (!["POST", "PUT", "DELETE"].includes(method))
           return json({ error: "Méthode refusée" }, 405);
         if (
@@ -163,7 +232,7 @@ export function createHandler(storeFactory = getStore, env = process.env) {
             409,
           );
         if (method === "POST") {
-          result = { ...product(body), id: randomUUID() };
+          result = { ...product(body, categories), id: randomUUID() };
           state.products.push(result);
         } else {
           const index = state.products.findIndex((p) => p.id === path[1]);
@@ -172,7 +241,7 @@ export function createHandler(storeFactory = getStore, env = process.env) {
             state.products.splice(index, 1);
             result = { ok: true };
           } else {
-            result = { ...product(body), id: path[1] };
+            result = { ...product(body, categories), id: path[1] };
             state.products[index] = result;
           }
         }

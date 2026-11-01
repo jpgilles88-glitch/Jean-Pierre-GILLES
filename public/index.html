@@ -148,6 +148,23 @@
             ><button id="refresh">Actualiser</button
             ><span id="admin-sync" role="status"></span>
           </div>
+          <section class="panel" aria-labelledby="categories-title">
+            <h2 id="categories-title">Gérer les catégories</h2>
+            <form id="category-form">
+              <label
+                >Nouvelle catégorie<input
+                  name="name"
+                  required
+                  maxlength="160" /></label
+              ><button class="green">Ajouter la catégorie</button>
+            </form>
+            <p>
+              Utilisez Monter et Descendre pour changer l’ordre dans la
+              boutique. Avant de supprimer une catégorie occupée, modifiez ses
+              produits pour les déplacer.
+            </p>
+            <div id="category-list"></div>
+          </section>
           <div id="admin-products" class="admin-grid"></div>
           <section class="orders">
             <h2>Commandes Click & Collect</h2>
@@ -244,12 +261,15 @@
         /></label>
         <div class="form-grid">
           <label
-            >Famille *<select
+            >Catégorie *<select
               name="family"
               id="family-select"
               required
             ></select></label
-          ><label>Catégorie<input name="category" maxlength="160" /></label
+          ><label
+            >Détail de catégorie (facultatif)<input
+              name="category"
+              maxlength="160" /></label
           ><label>Marque<input name="brand" maxlength="160" /></label
           ><label>Origine / pays<input name="origin" maxlength="160" /></label
           ><label

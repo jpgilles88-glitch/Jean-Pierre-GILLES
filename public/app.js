@@ -1,4 +1,4 @@
-import { families, saleTypes, margin, slots } from "./domain.js";
+import { saleTypes, margin, slots } from "./domain.js";
 const $ = (s) => document.querySelector(s),
   money = (n) =>
     new Intl.NumberFormat("fr-FR", {
@@ -22,7 +22,8 @@ const esc = (s) =>
         c
       ],
   );
-let products = [],
+let categories = [],
+  products = [],
   revision = null,
   orderRevision = null,
   editorRevision = null,
@@ -126,6 +127,8 @@ async function refresh(quiet = false) {
     const data = await api("products");
     products = data.products;
     revision = data.revision;
+    categories = data.categories;
+    renderCategories();
     renderProducts();
     const time = new Intl.DateTimeFormat("fr-FR", {
       hour: "2-digit",
@@ -174,15 +177,79 @@ function route() {
   $("#admin").hidden = !admin;
   if (admin) session().then(() => refresh());
 }
-$("#filters").innerHTML = ["", ...families]
-  .map(
-    (f) =>
-      `<button data-family="${esc(f)}" class="${!f ? "active" : ""}" aria-pressed="${!f}">${esc(f || "Tout le marché")}</button>`,
-  )
-  .join("");
-$("#family-select").innerHTML = families
-  .map((f) => `<option>${esc(f)}</option>`)
-  .join("");
+function renderCategories() {
+  if (!categories.some((c) => c.name === family)) family = "";
+  $("#filters").innerHTML = ["", ...categories.map((c) => c.name)]
+    .map(
+      (f) =>
+        `<button data-family="${esc(f)}" class="${f === family ? "active" : ""}" aria-pressed="${f === family}">${esc(f || "Tout le marché")}</button>`,
+    )
+    .join("");
+  const selected = $("#family-select").value;
+  $("#family-select").innerHTML = categories
+    .map((c) => `<option>${esc(c.name)}</option>`)
+    .join("");
+  if (categories.some((c) => c.name === selected))
+    $("#family-select").value = selected;
+  if (authenticated)
+    $("#category-list").innerHTML = categories
+      .map(
+        (c, i) =>
+          `<article class="category-row"><strong>${esc(c.name)}</strong><span>${c.count} produit(s)</span><div><button data-category-rename="${esc(c.id)}">Renommer</button> <button data-category-up="${esc(c.id)}" ${i === 0 ? "disabled" : ""}>Monter</button> <button data-category-down="${esc(c.id)}" ${i === categories.length - 1 ? "disabled" : ""}>Descendre</button> <button class="danger" data-category-delete="${esc(c.id)}">Supprimer la catégorie</button></div></article>`,
+      )
+      .join("");
+}
+async function changeCategory(path, method, body, expectedRevision = revision) {
+  try {
+    await api("categories" + path, {
+      method,
+      headers: { "If-Match": expectedRevision || "" },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+    await refresh();
+    notice("Catégories enregistrées et synchronisées");
+  } catch (e) {
+    notice(e.message, true);
+    await refresh(true);
+  }
+}
+$("#category-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  e.submitter.disabled = true;
+  await changeCategory("", "POST", { name: e.target.elements.name.value });
+  e.submitter.disabled = false;
+});
+$("#category-list").addEventListener("click", async (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  const id =
+    b.dataset.categoryRename ||
+    b.dataset.categoryDelete ||
+    b.dataset.categoryUp ||
+    b.dataset.categoryDown;
+  const c = categories.find((c) => c.id === id);
+  if (!c) return;
+  const expected = revision;
+  if (b.dataset.categoryRename) {
+    const name = prompt("Nouveau nom de la catégorie", c.name);
+    if (name !== null)
+      await changeCategory("/" + id, "PUT", { name }, expected);
+  } else if (b.dataset.categoryDelete) {
+    if (c.count)
+      return notice(
+        `${c.count} produit(s) associé(s). Déplacez d’abord les produits vers une autre catégorie en les modifiant.`,
+        true,
+      );
+    if (confirm("Supprimer la catégorie « " + c.name + " » ?"))
+      await changeCategory("/" + id, "DELETE", null, expected);
+  } else {
+    const ids = categories.map((c) => c.id),
+      i = ids.indexOf(id),
+      j = i + (b.dataset.categoryUp ? -1 : 1);
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    await changeCategory("/order", "PUT", { ids }, expected);
+  }
+});
 $("#sale-select").innerHTML = saleTypes
   .map((f) => `<option>${f}</option>`)
   .join("");
