@@ -31,6 +31,8 @@ let products = [],
   photo = "",
   newPhoto = null,
   photoBusy = false,
+  photoVersion = 0,
+  savingProduct = false,
   refreshing = false,
   noticeTimer;
 let cart = {};
@@ -356,8 +358,14 @@ $("#logout").addEventListener("click", async () => {
 });
 $("#refresh").addEventListener("click", () => refresh());
 function editProduct(p) {
+  if (savingProduct) return;
   const form = $("#product-form");
   form.reset();
+  // Hidden inputs retain programmatically assigned values across form.reset().
+  form.elements.namedItem("id").value = "";
+  photoVersion++;
+  photoBusy = false;
+  $("#product-form .save").disabled = false;
   photo = p?.photo || "";
   newPhoto = null;
   editorRevision = revision;
@@ -368,9 +376,13 @@ function editProduct(p) {
     : "Ajouter un produit";
   $("#photo-preview").hidden = !photo;
   if (photo) $("#photo-preview").src = photo;
+  else $("#photo-preview").removeAttribute("src");
   updateMargin();
   $("#product-dialog").showModal();
 }
+$("#product-dialog").addEventListener("close", () => {
+  photoVersion++;
+});
 $("#new-product").addEventListener("click", () => editProduct());
 function updateMargin() {
   const f = $("#product-form");
@@ -393,6 +405,8 @@ for (const name of ["purchasePrice", "salePrice", "vat"])
 $("#photo-input").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  if (savingProduct) return;
+  const version = ++photoVersion;
   photoBusy = true;
   $("#product-form .save").disabled = true;
   try {
@@ -414,17 +428,20 @@ $("#photo-input").addEventListener("change", async (e) => {
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      newPhoto = await new Promise((resolve) =>
+      const converted = await new Promise((resolve) =>
         canvas.toBlob(resolve, "image/jpeg", 0.82),
       );
-      if (!newPhoto || newPhoto.size > 2000000)
+      if (version !== photoVersion) return;
+      if (!converted || converted.size > 2000000)
         throw Error("Choisissez une photo plus petite.");
+      newPhoto = converted;
       $("#photo-preview").src = canvas.toDataURL("image/jpeg", 0.82);
       $("#photo-preview").hidden = false;
     } finally {
       URL.revokeObjectURL(url);
     }
   } catch (e) {
+    if (version !== photoVersion) return;
     notice(
       "Photo non importée. " +
         e.message +
@@ -434,11 +451,17 @@ $("#photo-input").addEventListener("change", async (e) => {
     e.target.value = "";
     newPhoto = null;
   } finally {
-    photoBusy = false;
-    $("#product-form .save").disabled = false;
+    if (version === photoVersion) {
+      photoBusy = false;
+      $("#product-form .save").disabled = false;
+    }
   }
 });
 $("#remove-photo").addEventListener("click", () => {
+  if (savingProduct) return;
+  photoVersion++;
+  photoBusy = false;
+  $("#product-form .save").disabled = false;
   photo = "";
   newPhoto = null;
   $("#photo-input").value = "";
@@ -446,7 +469,10 @@ $("#remove-photo").addEventListener("click", () => {
 });
 $("#product-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  if (photoBusy) return;
+  if (photoBusy || savingProduct) return;
+  savingProduct = true;
+  $("#photo-input").disabled = true;
+  $("#remove-photo").disabled = true;
   const button = e.submitter;
   button.disabled = true;
   try {
@@ -474,6 +500,9 @@ $("#product-form").addEventListener("submit", async (e) => {
   } catch (e) {
     notice(e.message, true);
   } finally {
+    savingProduct = false;
+    $("#photo-input").disabled = false;
+    $("#remove-photo").disabled = false;
     button.disabled = false;
   }
 });

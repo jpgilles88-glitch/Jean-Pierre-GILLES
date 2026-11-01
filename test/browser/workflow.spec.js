@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 test("gestion iPhone, photo, synchronisation ordinateur, commande et suppression", async ({
   browser,
 }) => {
+  test.setTimeout(90000);
   const mobile = await browser.newContext({
     viewport: { width: 390, height: 844 },
     isMobile: true,
@@ -34,13 +35,11 @@ test("gestion iPhone, photo, synchronisation ordinateur, commande et suppression
     c.getContext("2d").fillRect(0, 0, 40, 40);
     return c.toDataURL("image/jpeg").split(",")[1];
   });
-  await admin
-    .locator("#photo-input")
-    .setInputFiles({
-      name: "photo.jpg",
-      mimeType: "image/jpeg",
-      buffer: Buffer.from(jpeg, "base64"),
-    });
+  await admin.locator("#photo-input").setInputFiles({
+    name: "photo.jpg",
+    mimeType: "image/jpeg",
+    buffer: Buffer.from(jpeg, "base64"),
+  });
   await expect(admin.locator("#photo-preview")).toBeVisible();
   await admin.getByRole("button", { name: "Enregistrer le produit" }).click();
   await expect(admin.locator("#product-dialog")).not.toBeVisible();
@@ -71,6 +70,21 @@ test("gestion iPhone, photo, synchronisation ordinateur, commande et suppression
       ),
   ).toBe(3);
   await admin.getByRole("button", { name: "Modifier", exact: true }).click();
+  const oldPhoto = await shop.locator("#products img").getAttribute("src");
+  const replacement = await admin.evaluate(() => {
+    const c = document.createElement("canvas");
+    c.width = c.height = 40;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "red";
+    ctx.fillRect(0, 0, 40, 40);
+    return c.toDataURL("image/jpeg").split(",")[1];
+  });
+  await admin.locator("#photo-input").setInputFiles({
+    name: "replacement.jpg",
+    mimeType: "image/jpeg",
+    buffer: Buffer.from(replacement, "base64"),
+  });
+  await expect(admin.locator("#product-form .save")).toBeEnabled();
   await admin.getByLabel("Prix d’achat").fill("3.2");
   await admin.getByLabel("Prix de vente").fill("5");
   await admin.getByRole("button", { name: "Enregistrer le produit" }).click();
@@ -78,7 +92,85 @@ test("gestion iPhone, photo, synchronisation ordinateur, commande et suppression
   await expect(shop.locator("#products .price")).toContainText("5,00", {
     timeout: 15000,
   });
-  await shop.getByRole("button", { name: "+ Ajouter", exact: true }).click();
+  await expect(shop.locator("#products img")).not.toHaveAttribute(
+    "src",
+    oldPhoto,
+    { timeout: 15000 },
+  );
+  const replacementPhoto = await shop
+    .locator("#products img")
+    .getAttribute("src");
+  const imageResponse = await shop.request.get(replacementPhoto);
+  expect(imageResponse.ok()).toBe(true);
+  expect(
+    (await imageResponse.body()).equals(
+      await (await shop.request.get(oldPhoto)).body(),
+    ),
+  ).toBe(false);
+
+  // A conversion finishing after closing the editor must not leak into the next product.
+  await admin.getByRole("button", { name: "Modifier", exact: true }).click();
+  await admin.evaluate(() => {
+    const original = HTMLCanvasElement.prototype.toBlob;
+    HTMLCanvasElement.prototype.toBlob = function (...args) {
+      window.finishPhoto = () => original.apply(this, args);
+    };
+    window.restorePhoto = () => {
+      HTMLCanvasElement.prototype.toBlob = original;
+    };
+  });
+  await admin.locator("#photo-input").setInputFiles({
+    name: "delayed.jpg",
+    mimeType: "image/jpeg",
+    buffer: Buffer.from(jpeg, "base64"),
+  });
+  await admin.waitForFunction(() => !!window.finishPhoto);
+  await expect(admin.locator("#product-form .save")).toBeDisabled();
+  await admin.getByRole("button", { name: "Fermer le formulaire" }).click();
+  await admin.getByRole("button", { name: "+ Ajouter un produit" }).click();
+  await admin.evaluate(async () => {
+    window.restorePhoto();
+    window.finishPhoto();
+    // Let the real JPEG conversion and its promise callbacks finish.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  });
+  await expect(admin.locator("#photo-preview")).toBeHidden();
+  await expect(admin.locator("#product-form .save")).toBeEnabled();
+  await admin.getByRole("button", { name: "Fermer le formulaire" }).click();
+
+  // An edit sets the hidden ID; subsequent additions must still create distinct products.
+  for (const name of ["Pommes de terre", "Oignons supplémentaires"]) {
+    await admin.getByRole("button", { name: "+ Ajouter un produit" }).click();
+    await expect(admin.locator('[name="id"]')).toHaveValue("");
+    await admin.getByLabel("Nom du produit").fill(name);
+    await admin.getByLabel("Prix d’achat").fill("2");
+    await admin.getByLabel("Prix de vente").fill("6");
+    await admin.getByLabel("Stock (").fill("8");
+    await admin.locator("#photo-input").setInputFiles({
+      name: "new.jpg",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from(jpeg, "base64"),
+    });
+    await expect(admin.locator("#product-form .save")).toBeEnabled();
+    await admin.getByRole("button", { name: "Enregistrer le produit" }).click();
+    await expect(admin.locator("#product-dialog")).not.toBeVisible();
+    await expect(shop.locator("#products")).toContainText(name, {
+      timeout: 15000,
+    });
+  }
+  await expect(admin.locator("#admin-products .product-card")).toHaveCount(3);
+  await admin.reload();
+  await expect(admin.locator("#admin-products .product-card")).toHaveCount(3);
+  const originalCard = shop
+    .locator(".product-card")
+    .filter({ hasText: "Pommes test navigateur" });
+  await expect(originalCard.locator("img")).toHaveAttribute(
+    "src",
+    replacementPhoto,
+  );
+  await originalCard
+    .getByRole("button", { name: "+ Ajouter", exact: true })
+    .click();
   await shop.locator("#basket-toggle").click();
   await shop.getByLabel("Nom et prénom").fill("Client Test");
   await shop.getByLabel("Téléphone", { exact: true }).fill("0600000000");
@@ -109,7 +201,11 @@ test("gestion iPhone, photo, synchronisation ordinateur, commande et suppression
     fullPage: true,
   });
   admin.once("dialog", (d) => d.accept());
-  await admin.getByRole("button", { name: "Supprimer", exact: true }).click();
+  await admin
+    .locator("#admin-products .product-card")
+    .filter({ hasText: "Pommes test navigateur" })
+    .getByRole("button", { name: "Supprimer", exact: true })
+    .click();
   await expect(admin.locator("#admin-products")).not.toContainText(
     "Pommes test navigateur",
   );
@@ -119,14 +215,14 @@ test("gestion iPhone, photo, synchronisation ordinateur, commande et suppression
   );
   const phoneShop = await mobile.newPage();
   await phoneShop.goto("/");
-  await expect(phoneShop.locator("#products")).toContainText(
-    "Le marché prépare ses rayons",
-  );
+  await expect(phoneShop.locator("#products")).toContainText("Pommes de terre");
   expect(
     await phoneShop.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+  await expect(phoneShop.locator("#products .product-card")).toHaveCount(2);
+  await expect(admin.locator("#admin-products .product-card")).toHaveCount(2);
   expect(errors).toEqual([]);
   await mobile.close();
   await desktop.close();
