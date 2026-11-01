@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#174c35" />
+    <meta
+      name="description"
+      content="Le Marché d’Herblay : vos produits du marché en Click & Collect. Retrait de 8h à 20h, commandez au moins deux heures à l’avance."
+    />
+    <title>LE MARCHÉ D’HERBLAY — Click & Collect</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/style.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <div class="topline">
+      LE GOÛT DU MARCHÉ, LA SIMPLICITÉ DU RETRAIT
+      <span>8h – 20h · Click & Collect uniquement</span>
+    </div>
+    <header>
+      <a class="logo" href="#boutique" aria-label="Le Marché d’Herblay, accueil"
+        ><span class="logo-icon">M<span>✦</span></span
+        ><span
+          >LE MARCHÉ<br /><strong>D’HERBLAY</strong
+          ><small>FRAÎCHEUR & BONNES AFFAIRES</small></span
+        ></a
+      >
+      <nav aria-label="Navigation principale">
+        <a href="#boutique">Le marché</a><a href="#retrait">Comment ça marche</a
+        ><a href="#gestion">Gestion V6 Mobile</a
+        ><button id="basket-toggle" class="yellow">
+          Mon panier <span id="basket-count">0</span>
+        </button>
+      </nav>
+    </header>
+    <main>
+      <section id="shop">
+        <section class="hero">
+          <div>
+            <p class="eyebrow">VOTRE MARCHÉ, À PORTÉE DE MAIN</p>
+            <h1>Du bon. Du frais.<br /><em>Tout simplement.</em></h1>
+            <p>
+              Composez votre panier, choisissez votre créneau.<br />On prépare
+              votre marché, vous venez le chercher.
+            </p>
+            <a class="yellow button" href="#catalogue"
+              >Faire mon marché <span>↗</span></a
+            >
+            <div class="hero-note">
+              <span>◷</span> Retrait dès 2 heures après votre commande
+            </div>
+          </div>
+          <div class="market-art" aria-hidden="true">
+            <div class="sun">
+              LE BON GOÛT<br />DES BONNES<br /><b>AFFAIRES</b>
+            </div>
+            <div class="bag">
+              <span>LE MARCHÉ<br /><b>D’HERBLAY</b></span>
+              <div class="veg v1"></div>
+              <div class="veg v2"></div>
+              <div class="veg v3"></div>
+            </div>
+            <p>Votre panier vous attend.</p>
+          </div>
+        </section>
+        <div class="benefits">
+          <span>✦ Des produits pour tous les jours</span
+          ><span>◷ Retrait de 8h à 20h</span><span>✓ Paiement au retrait</span>
+        </div>
+        <section id="catalogue" class="catalogue">
+          <div class="section-title">
+            <div>
+              <p class="eyebrow">LES RAYONS DU MARCHÉ</p>
+              <h2>À mettre dans votre panier</h2>
+            </div>
+            <label class="search"
+              ><span class="sr-only">Rechercher un produit</span
+              ><input
+                id="search"
+                type="search"
+                placeholder="Un produit, une marque…"
+            /></label>
+          </div>
+          <div
+            id="filters"
+            class="filters"
+            aria-label="Familles de produits"
+          ></div>
+          <div class="catalogue-meta">
+            <span id="product-count"></span
+            ><span id="sync-state" role="status">Connexion au marché…</span>
+          </div>
+          <div id="products" class="product-grid"></div>
+        </section>
+        <section id="retrait" class="steps">
+          <p class="eyebrow">LE MARCHÉ À VOTRE RYTHME</p>
+          <h2>Trois petits pas. Un beau panier.</h2>
+          <div>
+            <article>
+              <b>01</b>
+              <h3>Faites votre choix</h3>
+              <p>Parcourez les rayons et ajoutez vos produits au panier.</p>
+            </article>
+            <article>
+              <b>02</b>
+              <h3>Choisissez votre retrait</h3>
+              <p>
+                Un créneau toutes les 30 minutes, de 8h à 20h, au moins 2 heures
+                après la commande.
+              </p>
+            </article>
+            <article>
+              <b>03</b>
+              <h3>Passez au marché</h3>
+              <p>
+                Présentez votre numéro de commande. Paiement sur place, sans
+                livraison.
+              </p>
+            </article>
+          </div>
+        </section>
+      </section>
+      <section id="admin" hidden>
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">LE MARCHÉ D’HERBLAY</p>
+            <h1>Gestion V6 Mobile</h1>
+            <p>Votre catalogue et vos commandes, synchronisés.</p>
+          </div>
+          <button id="logout" hidden>Se déconnecter</button>
+        </div>
+        <form id="login" class="panel narrow">
+          <h2>Connexion administrateur</h2>
+          <label
+            >Code administrateur<input
+              name="code"
+              type="password"
+              autocomplete="current-password"
+              required
+              maxlength="256" /></label
+          ><button class="green" type="submit">Se connecter</button>
+          <p>Connexion sécurisée pendant 8 heures sur cet appareil.</p>
+        </form>
+        <div id="admin-content" hidden>
+          <div class="admin-toolbar">
+            <button id="new-product" class="green">+ Ajouter un produit</button
+            ><button id="refresh">Actualiser</button
+            ><span id="admin-sync" role="status"></span>
+          </div>
+          <div id="admin-products" class="admin-grid"></div>
+          <section class="orders">
+            <h2>Commandes Click & Collect</h2>
+            <p>
+              Coordonnées réservées à la préparation et au retrait. Aucun email
+              automatique n’est envoyé.
+            </p>
+            <div id="orders"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <a class="footer-brand" href="#boutique">LE MARCHÉ D’HERBLAY</a>
+      <p>Le marché du quotidien. Les bonnes affaires en plus.</p>
+      <span
+        >Click & Collect uniquement · Retrait 8h–20h · Horaires en heure de
+        Paris</span
+      ><a href="#gestion">Gestion V6 Mobile</a>
+    </footer>
+    <dialog id="cart-dialog">
+      <div class="dialog-head">
+        <h2>Votre panier</h2>
+        <button
+          type="button"
+          data-close="cart-dialog"
+          aria-label="Fermer le panier"
+        >
+          ✕
+        </button>
+      </div>
+      <div id="cart-items"></div>
+      <p class="total">Total TTC <strong id="cart-total"></strong></p>
+      <form id="checkout">
+        <h3>Votre retrait au marché</h3>
+        <label
+          >Nom et prénom<input
+            name="name"
+            autocomplete="name"
+            required
+            maxlength="160"
+        /></label>
+        <div class="form-grid">
+          <label
+            >Téléphone<input
+              name="phone"
+              type="tel"
+              autocomplete="tel"
+              required
+              maxlength="24" /></label
+          ><label
+            >Email<input
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+              maxlength="160"
+          /></label>
+        </div>
+        <label
+          >Créneau de retrait (heure de Paris)<select
+            name="pickup"
+            id="pickup"
+            required
+          ></select
+        ></label>
+        <p class="hint">
+          Au moins 2 heures de préparation. Paiement au retrait. Les quantités
+          et les prix sont vérifiés à la confirmation.
+        </p>
+        <button type="submit" class="green">Confirmer ma commande</button>
+        <p class="hint">
+          Vos coordonnées servent uniquement au traitement de votre commande.
+          Pour toute demande relative à vos données, adressez-vous au marché
+          lors du retrait.
+        </p>
+      </form>
+      <div id="confirmation" hidden role="status"></div>
+    </dialog>
+    <dialog id="product-dialog">
+      <div class="dialog-head">
+        <h2 id="editor-title">Ajouter un produit</h2>
+        <button
+          type="button"
+          data-close="product-dialog"
+          aria-label="Fermer le formulaire"
+        >
+          ✕
+        </button>
+      </div>
+      <form id="product-form">
+        <input name="id" type="hidden" /><label
+          >Nom du produit *<input name="name" required maxlength="160"
+        /></label>
+        <div class="form-grid">
+          <label
+            >Famille *<select
+              name="family"
+              id="family-select"
+              required
+            ></select></label
+          ><label>Catégorie<input name="category" maxlength="160" /></label
+          ><label>Marque<input name="brand" maxlength="160" /></label
+          ><label>Origine / pays<input name="origin" maxlength="160" /></label
+          ><label
+            >Prix d’achat HT (€) *<input
+              name="purchasePrice"
+              type="number"
+              min="0"
+              max="1000000"
+              step="0.01"
+              inputmode="decimal"
+              required /></label
+          ><label
+            >Prix de vente TTC (€) *<input
+              name="salePrice"
+              type="number"
+              min="0.01"
+              max="1000000"
+              step="0.01"
+              inputmode="decimal"
+              required /></label
+          ><label
+            >TVA (%) *<input
+              name="vat"
+              type="number"
+              min="0"
+              max="100"
+              step="0.1"
+              inputmode="decimal"
+              value="5.5"
+              required /></label
+          ><label
+            >Stock (unités de vente) *<input
+              name="stock"
+              type="number"
+              min="0"
+              max="1000000"
+              step="1"
+              inputmode="numeric"
+              required /></label
+          ><label
+            >Type de vente *<select
+              name="saleType"
+              id="sale-select"
+              required
+            ></select></label
+          ><label
+            >Poids / quantité<input
+              name="quantity"
+              placeholder="Ex. 5 kg, 6 × 1 L, 1 kg"
+              maxlength="160"
+          /></label>
+        </div>
+        <p id="margin" class="margin" role="status"></p>
+        <p class="hint">
+          Marge sur prix de vente HT, après déduction de la TVA. Une marge
+          inférieure à 30 % déclenche une alerte sans bloquer la sauvegarde.
+          Pour la vente au kilo, une unité du panier correspond à 1 kg ;
+          indiquez-le dans poids / quantité.
+        </p>
+        <label
+          >Photo depuis votre téléphone<input
+            id="photo-input"
+            type="file"
+            accept="image/*"
+        /></label>
+        <p class="hint">
+          Choisissez une photo ou utilisez l’appareil photo proposé par votre
+          iPhone. L’image est réduite et convertie en JPEG avant l’envoi.
+        </p>
+        <img id="photo-preview" alt="Photo du produit" hidden /><button
+          id="remove-photo"
+          type="button"
+        >
+          Retirer la photo</button
+        ><button type="submit" class="green save">
+          Enregistrer le produit
+        </button>
+      </form>
+    </dialog>
+    <div id="notice" class="notice" role="status" hidden></div>
+  </body>
+</html>
