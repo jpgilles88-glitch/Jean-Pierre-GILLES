@@ -616,13 +616,17 @@ $("#product-form").addEventListener("submit", async (e) => {
       newPhoto = null;
     }
     p.photo = photo;
-    await catalogWrite("products" + (p.id ? "/" + p.id : ""), {
+    const saved = await catalogWrite("products" + (p.id ? "/" + p.id : ""), {
       method: p.id ? "PUT" : "POST",
       headers: p.id ? { "If-Match": revision || editorRevision || "" } : {},
       body: JSON.stringify(p),
     });
+    // The write response already carries the new catalogue revision. Do not let
+    // a concurrent/background refresh overwrite it before the confirmation read.
+    if (saved.revision) revision = saved.revision;
+    catalogGeneration++;
     $("#product-dialog").close();
-    await refresh();
+    await refresh(true);
     notice("Produit enregistré et synchronisé");
   } catch (e) {
     notice(e.message, true);
