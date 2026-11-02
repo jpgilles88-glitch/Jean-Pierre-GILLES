@@ -18,6 +18,7 @@ body {
   background: var(--cream);
   color: var(--ink);
   font-family: Arial, Helvetica, sans-serif;
+  font-weight: 700;
   line-height: 1.5;
 }
 button,
@@ -179,16 +180,16 @@ h2 {
 h1 {
   font-size: clamp(40px, 5.2vw, 68px);
   margin: 0 0 23px;
-  font-weight: 500;
+  font-weight: 700;
 }
 h1 em {
   color: var(--green);
-  font-weight: 500;
+  font-weight: 700;
 }
 h2 {
   font-size: 36px;
   margin: 0 0 20px;
-  font-weight: 500;
+  font-weight: 700;
 }
 h3 {
   line-height: 1.25;
@@ -351,7 +352,7 @@ h3 {
   padding: 8px 14px;
   min-height: 39px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 700;
   border-radius: 25px;
   text-transform: capitalize;
 }
@@ -432,7 +433,7 @@ h3 {
 }
 .price small {
   font-size: 11px;
-  font-weight: 400;
+  font-weight: 700;
   display: block;
 }
 .empty {
