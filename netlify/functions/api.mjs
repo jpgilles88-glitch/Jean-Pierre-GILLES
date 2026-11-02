@@ -172,11 +172,6 @@ export function createHandler(storeFactory = getStore, env = process.env) {
       if (path[0] === "categories") {
         if (!["POST", "PUT", "DELETE"].includes(method))
           return json({ error: "Méthode refusée" }, 405);
-        if (req.headers.get("if-match") !== (old?.etag || ""))
-          return json(
-            { error: "Le catalogue a changé. Actualisez puis recommencez." },
-            409,
-          );
         if (method === "POST") {
           result = {
             id: randomUUID(),
@@ -223,14 +218,6 @@ export function createHandler(storeFactory = getStore, env = process.env) {
       } else if (path[0] === "products") {
         if (!["POST", "PUT", "DELETE"].includes(method))
           return json({ error: "Méthode refusée" }, 405);
-        if (
-          method !== "POST" &&
-          req.headers.get("if-match") !== (old?.etag || "")
-        )
-          return json(
-            { error: "Le catalogue a changé. Actualisez puis recommencez." },
-            409,
-          );
         if (method === "POST") {
           result = { ...product(body, categories), id: randomUUID() };
           state.products.push(result);
