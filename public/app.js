@@ -141,10 +141,11 @@ function renderProducts() {
 async function refresh(quiet = false) {
   if (refreshing) {
     await refreshing;
-    if (quiet) return;
+    return;
   }
   if (changingCategory) return;
   const generation = catalogGeneration;
+  if (!quiet) $("#admin-sync").textContent = "Actualisation…";
   refreshing = (async () => {
     try {
       const data = await api("products");
@@ -158,6 +159,8 @@ async function refresh(quiet = false) {
       $("#sync-state").textContent = "Synchronisé à " + time;
       $("#admin-sync").textContent = "Synchronisé à " + time;
       if (authenticated) await loadOrders();
+      if (!quiet && location.hash === "#gestion")
+        notice("Catalogue actualisé");
     } catch (e) {
       $("#sync-state").textContent = "Hors connexion · données non actualisées";
       $("#admin-sync").textContent = "Échec de synchronisation";
@@ -168,6 +171,26 @@ async function refresh(quiet = false) {
     await refreshing;
   } finally {
     refreshing = null;
+  }
+}
+
+async function catalogWrite(path, options, retry = true) {
+  try {
+    return await api(path, options);
+  } catch (e) {
+    if (
+      retry &&
+      /catalogue a changé|autre modification/i.test(e.message || "")
+    ) {
+      const latest = await api("products");
+      applyCatalog(latest);
+      const headers = {
+        ...(options.headers || {}),
+        "If-Match": revision || "",
+      };
+      return catalogWrite(path, { ...options, headers }, false);
+    }
+    throw e;
   }
 }
 function renderAuth() {
@@ -229,7 +252,7 @@ async function changeCategory(path, method, body, expectedRevision = revision) {
     changingCategory = true;
     catalogGeneration++;
     setCategoryBusy(true);
-    const data = await api("categories" + path, {
+    const data = await catalogWrite("categories" + path, {
       method,
       headers: { "If-Match": expectedRevision || "" },
       ...(body ? { body: JSON.stringify(body) } : {}),
@@ -324,7 +347,7 @@ document.addEventListener("click", async (e) => {
     if (!confirm("Supprimer « " + p.name + " » du catalogue ?")) return;
     b.disabled = true;
     try {
-      await api("products/" + p.id, {
+      await catalogWrite("products/" + p.id, {
         method: "DELETE",
         headers: { "If-Match": revision || "" },
       });
@@ -593,9 +616,9 @@ $("#product-form").addEventListener("submit", async (e) => {
       newPhoto = null;
     }
     p.photo = photo;
-    await api("products" + (p.id ? "/" + p.id : ""), {
+    await catalogWrite("products" + (p.id ? "/" + p.id : ""), {
       method: p.id ? "PUT" : "POST",
-      headers: p.id ? { "If-Match": editorRevision || "" } : {},
+      headers: p.id ? { "If-Match": revision || editorRevision || "" } : {},
       body: JSON.stringify(p),
     });
     $("#product-dialog").close();
