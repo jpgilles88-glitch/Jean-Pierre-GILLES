@@ -209,6 +209,20 @@ h3 {
   font-size: 20px;
   margin-right: 5px;
 }
+.hero-film {
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+.hero-film video {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  aspect-ratio: 9 / 16;
+  border-radius: 22px;
+  background: #073b2d;
+  box-shadow: 0 12px 32px #073b2d22;
+}
 .market-art {
   height: 365px;
   border-radius: 46% 46% 15% 15%;
