@@ -12,6 +12,8 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/style.css" />
     <script type="module" src="/app.js"></script>
+    <script type="module" src="/slider-promos.js"></script>
+    <link rel="stylesheet" href="/slider-promos.css" />
   </head>
   <body>
     <div class="topline">
@@ -52,16 +54,14 @@
             </div>
           </div>
           <div class="hero-film">
-            <video
-              controls
-              playsinline
-              preload="metadata"
-              poster="/media/herblay-affiche.jpg"
-              aria-label="Publicité du Marché d’Herblay : ouverture prochaine, vente au colis et déstockage"
-            >
-              <source src="/media/herblay-ouverture.mp4" type="video/mp4" />
-              <a href="/media/herblay-ouverture.mp4">Voir la vidéo du Marché d’Herblay</a>
-            </video>
+            <section class="promo-slider" aria-label="Promotions du Marché d’Herblay" aria-roledescription="carrousel">
+              <div class="promo-slide active"><img src="/media/fraises.gif" alt="Fraises fraîches, tarte aux fraises et Click & Collect" loading="eager" /></div>
+              <div class="promo-slide"><img src="/media/oranges.gif" alt="Oranges fraîches du Marché d’Herblay" loading="lazy" /></div>
+              <div class="promo-slide"><img src="/media/pommes-de-terre.gif" alt="Filet de pommes de terre de 10 kg" loading="lazy" /></div>
+              <button class="promo-prev" type="button" aria-label="Publicité précédente">‹</button>
+              <button class="promo-next" type="button" aria-label="Publicité suivante">›</button>
+              <div class="promo-dots" aria-label="Choisir une publicité"><button type="button" class="active" aria-label="Fraises" aria-current="true"></button><button type="button" aria-label="Oranges"></button><button type="button" aria-label="Pommes de terre"></button></div>
+            </section>
           </div>
         </section>
         <div class="benefits">
