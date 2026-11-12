@@ -1,3 +1,4 @@
+import { customerHandler } from "../../lib/customers.js";
 import { getStore } from "@netlify/blobs";
 import {
   createHmac,
@@ -62,6 +63,7 @@ export function createHandler(storeFactory = getStore, env = process.env) {
         if (origin && origin !== url.origin)
           return json({ error: "Origine refusée" }, 403);
       }
+      if (path[0] === "customer") return await customerHandler(req, path.slice(1), store, context, json);
       if (path[0] === "session") {
         if (method === "GET")
           return json({ authenticated: admin, configured: !!key });
@@ -167,6 +169,8 @@ export function createHandler(storeFactory = getStore, env = process.env) {
         return json({ error: "Connexion requise" }, 401);
       if (Number(req.headers.get("content-length")) > 100000)
         return json({ error: "Requête trop volumineuse" }, 413);
+      if (["products", "categories"].includes(path[0]) && method !== "POST" && req.headers.get("if-match") !== (old?.etag || ""))
+        return json({ error: "Le catalogue a changé. Actualisez." }, 409);
       const body = method === "DELETE" ? {} : await req.json();
       let result;
       if (path[0] === "categories") {

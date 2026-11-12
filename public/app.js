@@ -75,7 +75,7 @@ async function api(path, options = {}) {
     );
   }
   if (!response.ok) {
-    if (response.status === 401) {
+    if (response.status === 401 && !path.startsWith("customer/")) {
       authenticated = false;
       renderAuth();
     }
@@ -174,7 +174,7 @@ async function refresh(quiet = false) {
   }
 }
 
-async function catalogWrite(path, options, retry = true) {
+async function catalogWrite(path, options, retry = false) {
   try {
     return await api(path, options);
   } catch (e) {
@@ -400,7 +400,7 @@ function renderCart() {
         if (!p)
           return `<div class="cart-line"><span>Produit retiré du catalogue</span><button data-remove="${esc(id)}">Retirer</button></div>`;
         total += p.salePrice * count;
-        return `<div class="cart-line"><div><strong>${esc(p.name)}</strong><p>${money(p.salePrice)} / ${esc(p.saleType)} · ${esc(p.quantity)}</p>${count > p.stock ? '<p class="danger">Stock disponible : ' + p.stock + "</p>" : ""}</div><div class="cart-controls"><label>Quantité<input type="number" min="1" max="${p.stock}" step="1" data-count="${id}" value="${count}"></label><button data-remove="${id}">Retirer</button></div></div>`;
+        return `<div class="cart-line">${p.photo ? `<img class="product-photo cart-photo" src="${esc(p.photo)}" alt="${esc(p.name)}">` : '<span class="cart-photo no-photo">Photo non renseignée</span>'}<div><strong>${esc(p.name)}</strong><p>${money(p.salePrice)} / ${esc(p.saleType)} · ${esc(p.quantity)}</p>${count > p.stock ? '<p class="danger">Stock disponible : ' + p.stock + "</p>" : ""}</div><div class="cart-controls"><label>Quantité<input type="number" min="1" max="${p.stock}" step="1" data-count="${id}" value="${count}"></label><button data-remove="${id}">Retirer</button></div></div>`;
       })
       .join("") || "<p>Votre panier attend les bonnes affaires du marché.</p>";
   $("#cart-total").textContent = money(total);
@@ -688,3 +688,81 @@ window.addEventListener("storage", (e) => {
 saveCart();
 route();
 session().then(() => refresh());
+
+
+let customer = null, savedLists = [], listsRevision = null;
+function renderCustomer() {
+  $("#customer-form").hidden = !!customer;
+  $("#customer-space").hidden = !customer;
+  $("#customer-greeting").textContent = customer ? `Bonjour ${customer.name}` : "";
+  $("#saved-lists").innerHTML = savedLists.map(list => `<article class="saved-list"><h4>${esc(list.name)}</h4>${list.items.map(item => {
+    const p = products.find(p => p.id === item.id);
+    return `<div class="saved-list-item">${p?.photo ? `<img class="cart-photo product-photo" src="${esc(p.photo)}" alt="${esc(p.name)}" loading="lazy">` : '<span class="cart-photo no-photo">Sans photo</span>'}<span>${esc(p?.name || "Produit retiré du catalogue")} × ${item.count}${p ? ` · ${money(p.salePrice)} / ${esc(p.saleType)}${p.stock < item.count ? ' · Stock insuffisant' : ''}` : ''}</span></div>`;
+  }).join("")}<button data-restore-list="${list.id}" class="green">Ajouter au panier</button><button data-delete-list="${list.id}">Supprimer la liste</button></article>`).join("") || '<p>Aucune liste pour le moment. Composez un panier puis enregistrez-le ici.</p>';
+  $("#list-suggestions").innerHTML = products.filter(p => p.stock > 0 && !cart[p.id]).slice(0,4).map(p=>card(p)).join("") || '<p>Aucune suggestion disponible pour le moment.</p>';
+}
+async function loadCustomer() {
+  const session = await api("customer/session");
+  customer = session.user;
+  savedLists = []; listsRevision = null;
+  if(customer) {
+    const data = await api("customer/lists");
+    savedLists = data.lists; listsRevision = data.revision;
+  }
+  renderCustomer();
+}
+async function customerAction(action) {
+  $("#customer-message").textContent = "Chargement…";
+  try { await action(); $("#customer-message").textContent = ""; }
+  catch(e) { $("#customer-message").textContent = e.message; }
+}
+$("#customer-toggle").onclick = () => {
+  $("#customer-dialog").showModal();
+  customerAction(async()=>{ await refresh(true); await loadCustomer(); });
+};
+$("#customer-form").onsubmit = e => {
+  e.preventDefault();
+  const action=e.submitter.value;
+  const body=Object.fromEntries(new FormData(e.target));
+  const buttons=[...e.target.querySelectorAll('button')];
+  buttons.forEach(b=>b.disabled=true);
+  customerAction(async()=>{
+    await api("customer/"+action,{method:"POST",body:JSON.stringify(body)});
+    e.target.reset(); await loadCustomer();
+  }).finally(()=>buttons.forEach(b=>b.disabled=false));
+};
+$("#customer-logout").onclick=()=>customerAction(async()=>{
+  await api("customer/session",{method:"DELETE"});
+  customer=null; savedLists=[]; listsRevision=null; renderCustomer();
+});
+$("#refresh-lists").onclick=()=>customerAction(loadCustomer);
+$("#save-list").onsubmit=e=>{
+  e.preventDefault(); const button=e.submitter; button.disabled=true;
+  customerAction(async()=>{
+    const items=Object.entries(cart).filter(([,n])=>Number.isInteger(n)&&n>0).map(([id,count])=>({id,count}));
+    if(!items.length) throw Error("Ajoutez d’abord des produits à votre panier.");
+    const data=await api("customer/lists",{method:"POST",headers:{"If-Match":listsRevision},body:JSON.stringify({name:new FormData(e.target).get("name"),items})});
+    savedLists=data.lists; listsRevision=data.revision; e.target.reset(); renderCustomer();
+  }).finally(()=>button.disabled=false);
+};
+$("#saved-lists").onclick=e=>{
+  const button=e.target.closest('button'); if(!button) return;
+  if(button.dataset.restoreList) {
+    const list=savedLists.find(l=>l.id===button.dataset.restoreList); let skipped=0;
+    for(const item of list.items) {
+      const p=products.find(p=>p.id===item.id);
+      if(!p || p.stock<1) { skipped++; continue; }
+      const wanted=(Number.isInteger(cart[p.id])?cart[p.id]:0)+item.count;
+      cart[p.id]=Math.min(wanted,p.stock); if(wanted>p.stock) skipped++;
+    }
+    saveCart(); renderCustomer();
+    $("#customer-message").textContent=skipped ? "Liste ajoutée au panier, avec des quantités ajustées selon les disponibilités. Certains produits sont indisponibles." : "Liste ajoutée au panier. Vous pouvez poursuivre vos courses.";
+  }
+  if(button.dataset.deleteList && confirm("Supprimer cette liste ?")) {
+    button.disabled=true;
+    customerAction(async()=>{
+      const data=await api("customer/lists/"+button.dataset.deleteList,{method:"DELETE",headers:{"If-Match":listsRevision}});
+      savedLists=data.lists; listsRevision=data.revision; renderCustomer();
+    }).finally(()=>button.disabled=false);
+  }
+};

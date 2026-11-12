@@ -29,7 +29,7 @@
       <nav aria-label="Navigation principale">
         <a href="#boutique">Le marché</a><a href="#retrait">Comment ça marche</a
         ><a href="#gestion">Gestion V6 Mobile</a
-        ><button id="basket-toggle" class="yellow">
+        ><button id="customer-toggle">Mon compte · Mes listes</button><button id="basket-toggle" class="yellow">
           Mon panier <span id="basket-count">0</span>
         </button>
       </nav>
@@ -348,6 +348,28 @@
           Enregistrer le produit
         </button>
       </form>
+    </dialog>
+    <dialog id="customer-dialog" aria-labelledby="customer-title">
+      <form method="dialog"><button aria-label="Fermer" class="close">×</button></form>
+      <h2 id="customer-title">Mon compte · Mes listes</h2>
+      <p id="customer-message" role="status"></p>
+      <form id="customer-form" class="panel">
+        <p>Retrouvez vos listes de courses sur tous vos appareils.</p>
+        <label>Votre nom (pour créer un compte)<input name="name" autocomplete="name" maxlength="100"></label>
+        <label>Email du compte<input name="email" type="email" autocomplete="email" required maxlength="254"></label>
+        <label>Mot de passe (12 caractères minimum)<input name="password" type="password" autocomplete="current-password" minlength="12" maxlength="128" required></label>
+        <button name="action" value="login" class="green">Se connecter</button>
+        <button name="action" value="register">Créer mon compte</button>
+      </form>
+      <section id="customer-space" hidden>
+        <p id="customer-greeting"></p><button id="customer-logout">Se déconnecter</button>
+        <h3>Mes listes de courses</h3>
+        <form id="save-list"><label>Nom de la liste<input name="name" placeholder="Mes courses de la semaine" maxlength="80" required></label><button class="green">Enregistrer mon panier dans une liste</button></form>
+        <button id="refresh-lists">Actualiser mes listes</button>
+        <div id="saved-lists"></div>
+        <h3>À découvrir pour vos courses</h3><p>Des produits disponibles, à ajouter à votre panier avant de l’enregistrer.</p>
+        <div id="list-suggestions" class="product-grid"></div>
+      </section>
     </dialog>
     <div id="notice" class="notice" role="status" hidden></div>
   </body>

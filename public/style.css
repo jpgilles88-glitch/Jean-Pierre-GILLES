@@ -971,3 +971,15 @@ input[type="file"] {
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+
+.cart-photo { width:72px; height:72px; min-width:72px; object-fit:cover; border-radius:10px; }
+.cart-line > .no-photo, .saved-list-item > .no-photo { display:flex; align-items:center; justify-content:center; font-size:11px; text-align:center; }
+#customer-dialog { width:min(900px,94vw); max-height:90vh; overflow:auto; }
+#customer-message:not(:empty) { padding:12px; background:#fff4cd; border-radius:8px; }
+.saved-list { border:1px solid #d5dfd3; border-radius:12px; padding:16px; margin:16px 0; }
+.saved-list-item { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+#customer-space button { margin:6px 4px 6px 0; }
+@media(max-width:540px) { .cart-line { flex-wrap:wrap; gap:10px; } .cart-controls { width:100%; } }
+.form-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.form-grid > label, dialog input, dialog select { min-width:0; }
+@media(max-width:540px) { #cart-dialog .form-grid { grid-template-columns:1fr; } }
