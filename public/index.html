@@ -68,6 +68,11 @@
           <span>✦ Des produits pour tous les jours</span
           ><span>◷ Retrait de 8h à 20h</span><span>✓ Paiement au retrait</span>
         </div>
+        <section id="weekly-offers" class="catalogue" aria-labelledby="offers-title" hidden>
+          <h2 id="offers-title">Les offres de la semaine</h2>
+          <div id="offer-products" class="product-grid"></div>
+          <a href="#catalogue">Voir tous les rayons</a>
+        </section>
         <section id="catalogue" class="catalogue">
           <div class="section-title">
             <div>
@@ -224,13 +229,12 @@
               maxlength="160"
           /></label>
         </div>
-        <label
-          >Créneau de retrait (heure de Paris)<select
-            name="pickup"
-            id="pickup"
-            required
-          ></select
-        ></label>
+        <div class="form-grid">
+          <label>Jour de retrait<select id="pickup-day" required></select></label>
+          <label>Heure de retrait (heure de Paris)<select
+            name="pickup" id="pickup" required disabled
+          ></select></label>
+        </div>
         <p class="hint">
           Au moins 2 heures de préparation. Paiement au retrait. Les quantités
           et les prix sont vérifiés à la confirmation.
@@ -270,7 +274,7 @@
             >Détail de catégorie (facultatif)<input
               name="category"
               maxlength="160" /></label
-          ><label>Marque<input name="brand" maxlength="160" /></label
+          ><label class="promotion-toggle"><input name="promotion" type="checkbox" /> Mettre en promotion</label><label>Marque<input name="brand" maxlength="160" /></label
           ><label>Origine / pays<input name="origin" maxlength="160" /></label
           ><label
             >Prix d’achat HT (€) *<input

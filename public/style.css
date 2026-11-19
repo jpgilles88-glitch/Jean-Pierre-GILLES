@@ -983,3 +983,24 @@ input[type="file"] {
 .form-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
 .form-grid > label, dialog input, dialog select { min-width:0; }
 @media(max-width:540px) { #cart-dialog .form-grid { grid-template-columns:1fr; } }
+
+#weekly-offers {
+  padding-bottom: 0;
+}
+#weekly-offers .product-grid {
+  margin: 1rem 0;
+}
+#shop .product-photo:not(.cart-photo),
+#shop .product-card > .no-photo {
+  height: auto;
+  aspect-ratio: 4 / 5;
+  width: 100%;
+}
+.promotion-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.promotion-toggle input {
+  width: auto;
+}

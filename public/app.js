@@ -97,6 +97,9 @@ function applyCatalog(data) {
   categories = data.categories;
   renderCategories();
   renderProducts();
+  const offers = products.filter((p) => p.stock > 0 && isPromotion(p)).slice(0, 3);
+  $("#weekly-offers").hidden = !offers.length;
+  $("#offer-products").innerHTML = offers.map((p) => card(p)).join("");
 }
 function saveCart() {
   try {
@@ -106,16 +109,32 @@ function saveCart() {
     .filter(Number.isInteger)
     .reduce((s, n) => s + Math.max(0, n), 0);
 }
+const promotionFamily = "produits en promotion";
+const isPromotion = (p) =>
+  p.promotion === true || p.family.toLocaleLowerCase("fr") === promotionFamily;
+function displayName(p) {
+  if (!p.quantity || p.saleType === "kilo") return p.name;
+  return `${p.name} — ${p.saleType} de ${p.quantity}`;
+}
+function unitPrice(p) {
+  const weight = p.quantity.match(/^(\d+(?:[.,]\d+)?)\s*(kg|kilos?|kilogrammes?|g|grammes?)$/i);
+  if (!weight || p.saleType === "kilo") return "";
+  const kilos = Number(weight[1].replace(",", ".")) /
+    (/^g/i.test(weight[2]) ? 1000 : 1);
+  return kilos > 0 ? `${money(p.salePrice / kilos)} / kg` : "";
+}
 function card(p, admin = false) {
   const m = admin ? margin(p) : null;
-  return `<article class="product-card">${p.photo ? `<img class="product-photo" src="${esc(p.photo)}" alt="${esc(p.name)}" loading="lazy">` : '<div class="no-photo">Photo non renseignée</div>'}<div class="product-info"><span class="tag">${esc(p.family)}</span><h3>${esc(p.name)}</h3><p>${[p.brand, p.category, p.origin].filter(Boolean).map(esc).join(" · ")}</p><p>${esc(p.quantity)}${p.quantity ? " · " : ""}${esc(p.saleType)} · ${p.stock > 0 ? p.stock + " en stock" : "Épuisé"}</p>${admin ? `<p>Achat HT : ${money(p.purchasePrice)} · TVA ${p.vat} %</p><p class="margin ${m !== null && m < 30 ? "warning" : ""}">Marge : ${m === null ? "non calculable" : m.toFixed(1) + " %"}${m !== null && m < 30 ? " · sous 30 %" : ""}</p>` : ""}<div class="price-row"><span class="price">${money(p.salePrice)}<small>le ${esc(p.saleType)} · TTC</small></span>${admin ? "" : `<button class="green" data-add="${p.id}" ${p.stock < 1 ? "disabled" : ""}>${p.stock < 1 ? "Épuisé" : "+ Ajouter"}</button>`}</div></div>${admin ? `<div class="admin-actions"><button data-edit="${p.id}">Modifier</button><button class="danger" data-delete="${p.id}">Supprimer</button></div>` : ""}</article>`;
+  const pricePerKilo = admin ? "" : unitPrice(p);
+  return `<article class="product-card">${p.photo ? `<img class="product-photo" src="${esc(p.photo)}" alt="${esc(p.name)}" loading="lazy">` : '<div class="no-photo">Photo non renseignée</div>'}<div class="product-info"><span class="tag">${esc(p.family)}</span><h3>${esc(admin ? p.name : displayName(p))}</h3><p>${[p.brand, p.category, p.origin].filter(Boolean).map(esc).join(" · ")}</p><p>${esc(p.quantity)}${p.quantity ? " · " : ""}${esc(p.saleType)} · ${p.stock > 0 ? p.stock + " en stock" : "Épuisé"}</p>${admin ? `<p>Achat HT : ${money(p.purchasePrice)} · TVA ${p.vat} %</p><p class="margin ${m !== null && m < 30 ? "warning" : ""}">Marge : ${m === null ? "non calculable" : m.toFixed(1) + " %"}${m !== null && m < 30 ? " · sous 30 %" : ""}</p>` : ""}<div class="price-row"><span class="price">${money(p.salePrice)}<small>${p.saleType === "pièce" ? "la" : "le"} ${esc(p.saleType)} · TTC</small>${pricePerKilo ? `<small>${pricePerKilo}</small>` : ""}</span>${admin ? "" : `<button class="green" data-add="${p.id}" ${p.stock < 1 ? "disabled" : ""}>${p.stock < 1 ? "Épuisé" : "+ Ajouter"}</button>`}</div></div>${admin ? `<div class="admin-actions"><button data-edit="${p.id}">Modifier</button><button class="danger" data-delete="${p.id}">Supprimer</button></div>` : ""}</article>`;
 }
 function renderProducts() {
   const q = $("#search").value.trim().toLocaleLowerCase("fr");
   const visible = products.filter(
     (p) =>
-      (!family || p.family === family) &&
-      [p.name, p.brand, p.category, p.origin]
+      (!family || p.family === family ||
+        (family.toLocaleLowerCase("fr") === promotionFamily && isPromotion(p))) &&
+      [p.name, p.brand, p.category, p.origin, p.quantity]
         .join(" ")
         .toLocaleLowerCase("fr")
         .includes(q),
@@ -225,8 +244,11 @@ function route() {
   if (admin) session().then(() => refresh());
 }
 function renderCategories() {
-  if (!categories.some((c) => c.name === family)) family = "";
-  $("#filters").innerHTML = ["", ...categories.map((c) => c.name)]
+  const names = categories.map((c) => c.name);
+  if (products.some(isPromotion) && !names.some((n) => n.toLocaleLowerCase("fr") === promotionFamily))
+    names.push("Produits en promotion");
+  if (!names.includes(family)) family = "";
+  $("#filters").innerHTML = ["", ...names]
     .map(
       (f) =>
         `<button data-family="${esc(f)}" class="${f === family ? "active" : ""}" aria-pressed="${f === family}">${esc(f || "Tout le marché")}</button>`,
@@ -378,16 +400,39 @@ document.addEventListener(
   },
   true,
 );
-function fillSlots() {
-  const selected = $("#pickup").value;
-  $("#pickup").innerHTML =
-    '<option value="">Choisissez votre créneau</option>' +
-    slots()
-      .map((s) => `<option value="${s}">${date(s)}</option>`)
+const pickupDay = new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" });
+const pickupDayLabel = new Intl.DateTimeFormat("fr-FR", {
+  timeZone: "Europe/Paris", weekday: "long", day: "numeric", month: "long",
+});
+const pickupTimeLabel = new Intl.DateTimeFormat("fr-FR", {
+  timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit",
+});
+function fillPickupTimes(available = slots(), selected = "") {
+  const day = $("#pickup-day").value;
+  const time = $("#pickup");
+  time.innerHTML = '<option value="">Choisissez une heure</option>' +
+    available.filter((s) => pickupDay.format(new Date(s)) === day)
+      .map((s) => `<option value="${s}">${pickupTimeLabel.format(new Date(s))}</option>`)
       .join("");
-  if ([...$("#pickup").options].some((o) => o.value === selected))
-    $("#pickup").value = selected;
+  time.disabled = time.options.length === 1;
+  if ([...time.options].some((o) => o.value === selected)) time.value = selected;
 }
+function fillSlots() {
+  const day = $("#pickup-day");
+  const previousDay = day.value;
+  const previousTime = $("#pickup").value;
+  const available = slots();
+  const days = new Map();
+  for (const slot of available) {
+    const instant = new Date(slot);
+    days.set(pickupDay.format(instant), pickupDayLabel.format(instant));
+  }
+  day.innerHTML = '<option value="">Choisissez un jour</option>' +
+    [...days].map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
+  if (days.has(previousDay)) day.value = previousDay;
+  fillPickupTimes(available, previousTime);
+}
+$("#pickup-day").addEventListener("change", () => fillPickupTimes());
 function renderCart() {
   const entries = Object.entries(cart).filter(
     ([, count]) => Number.isInteger(count) && count > 0,
@@ -497,7 +542,9 @@ function editProduct(p) {
   newPhoto = null;
   editorRevision = revision;
   for (const [k, v] of Object.entries(p || {}))
-    if (form.elements.namedItem(k)) form.elements.namedItem(k).value = v;
+    if (k !== "promotion" && form.elements.namedItem(k))
+      form.elements.namedItem(k).value = v;
+  form.elements.promotion.checked = p?.promotion === true;
   $("#editor-title").textContent = p
     ? "Modifier le produit"
     : "Ajouter un produit";
@@ -604,6 +651,7 @@ $("#product-form").addEventListener("submit", async (e) => {
   button.disabled = true;
   try {
     const p = Object.fromEntries(new FormData(e.target));
+    p.promotion = e.target.elements.promotion.checked;
     for (const key of ["purchasePrice", "salePrice", "stock", "vat"])
       p[key] = Number(p[key]);
     if (newPhoto) {
